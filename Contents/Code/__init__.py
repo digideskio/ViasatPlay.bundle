@@ -139,7 +139,6 @@ def ChannelMenu(title, base_url, thumb):
     return oc
 
 ####################################################################################################
-@route(PREFIX + '/Search', offset = int)
 def Search(query, offset = 0):
     oc = ObjectContainer(title1 = TITLE, title2 = 'Search Results')
 
