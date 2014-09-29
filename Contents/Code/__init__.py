@@ -42,13 +42,37 @@ CHANNELS = [
         'base_url': 'http://www.viasat4play.no',
         'thumb':    R('viasat4_norway.png'),
         'desc':     unicode('Viasat 4 er en norsk underholdnings- og sportskanal fra Modern Times Group (MTG). Kanalen startet sendinger 8. september 2007 i forbindelse med utbyggingen av det digitale bakkenettet.')
-    },	
+    },
+    {
+        'title':    'TV6 Play Norge',
+        'base_url': 'http://www.tv6play.no',
+        'thumb':    R('tv6_norway.png'),
+        'desc':     unicode('TV6 er en underholdnings- og livsstilskanal hovedsakelig rettet mot moderne, voksne kvinner, med et bredt tilbud av programmer som skal inspirere og bevege seerne. Ved siden av TV3 og Viasat 4 har TV6 fått sin plass i MTG-familien, som et litt voksnere tv-alternativ for moderne, voksne kvinner. Typiske programsjangre vil være mat, hjem og bolig, talkshow, kvalitetsdramaserier og filmer, samt andre livsstilstemaer som er i vinden.')
+    },
     {
         'title':    'TV3 Play Danmark',
         'base_url': 'http://www.tv3play.dk',
         'thumb':    R('tv3_denmark.png'),
         'desc':     unicode('På TV3 Play kan du se alle TV3’s egne programmer og nogen af vores udenlandske serier. Vi har også ekstramateriale til flere af vores programmer. Mer information om vores programmer findes på TV3.dk')
     },
+    {
+        'title':    'TV3 Play Eesti',
+        'base_url': 'http://www.tv3play.ee',
+        'thumb':    R('tv3_denmark.png'),
+        'desc':     ''
+    },
+    {
+        'title':    'TVPlay Latvija',
+        'base_url': 'http://www.tv3play.lv',
+        'thumb':    R('tv3_latvia.png'),
+        'desc':     ''
+    },
+    {
+        'title':    'TV3 Play Lietuva',
+        'base_url': 'http://www.tv3play.lt',
+        'thumb':    R('tv3_norway.png'),
+        'desc':     ''
+    }
 ]
 
 ###################################################################################################
@@ -144,7 +168,6 @@ def Search(query, offset = 0):
 
     query   = unicode(query)
     results = []
-    counter = 0
 
     for channel in CHANNELS:
         videos = AllPrograms(channel['title'], channel['base_url']).objects
@@ -164,12 +187,7 @@ def Search(query, offset = 0):
                 )
     
     results = sorted(results, key = lambda result: result['title'])           
-    for result in results:
-        counter = counter + 1
-            
-        if counter <= offset:
-            continue
-        
+    for result in results[offset:]:       
         video = result['video']         
         video.summary = result['channel_title'] + "\r\n\r\n" + video.summary
         video.art = result['thumb']
@@ -185,7 +203,7 @@ def Search(query, offset = 0):
                         Callback(
                             Search,
                             query = query,
-                            offset = counter
+                            offset = offset + MAX_SEARCH_ITEMS
                         ),
                     title = "Next..."
                 )
