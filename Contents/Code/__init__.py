@@ -447,7 +447,7 @@ def AllPrograms(title, url):
 
 ####################################################################################################
 @route(PREFIX + '/Seasons')
-def Seasons(title, id):        
+def Seasons(title, id):
     oc = ObjectContainer(title2 = unicode(title))
   
     seasonsInfo = JSON.ObjectFromURL(API_BASE_URL + 'seasons?format=%s' % id)
@@ -576,6 +576,9 @@ def Videos(title, videos_url, art = R(ART)):
     
     if videos:
         for video in videos:
+            if video['publishing_status']['login_required']:
+                continue
+            
             try:
                 url = video['sharing']['url']
             except:
