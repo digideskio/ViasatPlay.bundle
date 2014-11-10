@@ -1,0 +1,9 @@
+[
+	{
+		"id": "country",
+		"type": "enum",
+        "label": "Select Country",
+        "values": ["None", "Sweden","Norway","Denmark","Estonia","Latvia","Lithuania","Bulgaria"],
+        "default": "None"
+	}
+]
