@@ -580,7 +580,7 @@ def Videos(title, videos_url, art = R(ART)):
                 continue
             
             try:
-                url = video['sharing']['url']
+                url = video['sharing']['url'].replace("..", ".")
             except:
                 continue
             
