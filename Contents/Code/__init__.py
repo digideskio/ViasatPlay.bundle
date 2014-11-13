@@ -252,7 +252,7 @@ def MainMenu():
             DirectoryObject(
                 key = 
                     Callback(
-                        Episodes, 
+                        Videos, 
                         title = title,
                         videos_url = API_BASE_URL + 'sections?sections=videos.latest&premium=open&device=mobile&country=%s' % country
                     ), 
@@ -265,7 +265,7 @@ def MainMenu():
             DirectoryObject(
                 key = 
                     Callback(
-                        Episodes, 
+                        Videos, 
                         title = title,
                         videos_url = API_BASE_URL + 'sections?sections=videos.popular&premium=open&device=mobile&country=%s' % country
                     ), 
@@ -327,7 +327,7 @@ def ChannelMenu(title, id, base_url, thumb):
         DirectoryObject(
             key = 
                 Callback(
-                    Episodes, 
+                    Videos, 
                     title = title,
                     videos_url = API_BASE_URL + 'sections?sections=videos.latest&premium=open&device=mobile&channel=%s' % id
                 ), 
@@ -341,7 +341,7 @@ def ChannelMenu(title, id, base_url, thumb):
         DirectoryObject(
             key = 
                 Callback(
-                    Episodes, 
+                    Videos, 
                     title = title, 
                     videos_url = API_BASE_URL + 'sections?sections=videos.popular&premium=open&device=mobile&channel=%s' % id
                 ), 
@@ -447,7 +447,7 @@ def AllPrograms(title, url):
 
 ####################################################################################################
 @route(PREFIX + '/Seasons')
-def Seasons(title, id):        
+def Seasons(title, id):
     oc = ObjectContainer(title2 = unicode(title))
   
     seasonsInfo = JSON.ObjectFromURL(API_BASE_URL + 'seasons?format=%s' % id)
@@ -458,7 +458,7 @@ def Seasons(title, id):
         except:
             art = R(ART)
             
-        return Episodes(
+        return VideoTypeChoice(
             title = unicode(seasonsInfo['_embedded']['seasons'][0]['title']),
             videos_url = seasonsInfo['_embedded']['seasons'][0]['_links']['videos']['href'],
             art = art
@@ -477,7 +477,7 @@ def Seasons(title, id):
                 DirectoryObject(
                     key = 
                         Callback(
-                            Episodes, 
+                            VideoTypeChoice, 
                             title      = seasonName, 
                             videos_url = season['_links']['videos']['href'],
                             art        = seasonImg
@@ -489,11 +489,77 @@ def Seasons(title, id):
             ) 
 
     return oc
- 
+
+
+####################################################################################################
+@route(PREFIX + '/VideoTypeChoice')
+def VideoTypeChoice(title, videos_url, art = R(ART)):
+    episodes_oc = Episodes(
+        title = title,
+        videos_url = videos_url,
+        art = art
+    )
+    
+    if len(episodes_oc) < 1:
+        return Clips(
+            title = title,
+            videos_url = videos_url,
+            art = art       
+        )
+    
+    else:
+        clips_oc = Clips(
+            title = title,
+            videos_url = videos_url,
+            art = art
+        )
+        
+        oc = ObjectContainer(title2 = unicode(title))
+        
+        if len(clips_oc) > 0:
+            oc.add(
+                DirectoryObject(
+                    key =
+                        Callback(
+                            Clips,
+                            title = title,
+                            videos_url = videos_url,
+                            art = art
+                            
+                        ),
+                    title = 'Clips'
+                )
+            )
+        
+        for object in episodes_oc.objects:
+            oc.add(object)
+            
+        return oc
+
 ####################################################################################################
 @route(PREFIX + '/Episodes')
 def Episodes(title, videos_url, art = R(ART)):
+    return Videos(
+        title = title,
+        videos_url = videos_url + "&type=program",
+        art = art
+    )
+    
+####################################################################################################
+@route(PREFIX + '/Clips')
+def Clips(title, videos_url, art = R(ART)):
+    return Videos(
+        title = title,
+        videos_url = videos_url + "&type=clip",
+        art = art
+    )
+ 
+####################################################################################################
+@route(PREFIX + '/Videos')
+def Videos(title, videos_url, art = R(ART)):
     oc = ObjectContainer(title2 = unicode(title))
+    
+    orgTitle = title
 
     try:
         videosInfo = JSON.ObjectFromURL(videos_url)
@@ -510,8 +576,11 @@ def Episodes(title, videos_url, art = R(ART)):
     
     if videos:
         for video in videos:
+            if video['publishing_status']['login_required']:
+                continue
+            
             try:
-                url = video['sharing']['url']
+                url = video['sharing']['url'].replace("..", ".")
             except:
                 continue
             
@@ -572,6 +641,19 @@ def Episodes(title, videos_url, art = R(ART)):
             
     if len(oc) < 1:
         return NoProgramsFound(oc)
+    
+    elif 'next' in videosInfo['_links']:
+        oc.add(
+            NextPageObject(
+                key =
+                    Callback(
+                        Videos,
+                        title = orgTitle,
+                        videos_url = videosInfo['_links']['next']['href'],
+                        art = art
+                    )
+            )
+        )
 
     return oc
 
