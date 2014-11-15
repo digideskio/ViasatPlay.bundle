@@ -276,7 +276,7 @@ def MainMenu():
         data = JSON.ObjectFromURL(API_BASE_URL + 'channels/')
         
         for channel in data['_embedded']['channels']:
-            if channel['country'] in COUNTRIES[Prefs['country']]:
+            if channel['country'] in COUNTRIES[Prefs['country']] and channel['id'] in CHANNELS:
                 oc.add(
                     DirectoryObject(
                         key = 
