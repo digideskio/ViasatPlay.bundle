@@ -1,3 +1,5 @@
+import re
+
 TITLE  = 'Viasat Play'
 PREFIX = '/video/viasatplay'
 
@@ -5,6 +7,8 @@ ART   = "art-default.jpg"
 THUMB = 'icon-default.png'
 
 MAX_SEARCH_ITEMS = 50
+
+CHANNEL_NAMES = []
 
 CHANNELS = {
     1209:
@@ -242,73 +246,97 @@ def Start():
 ###################################################################################################
 @handler(PREFIX, TITLE, thumb = THUMB, art = ART)
 def MainMenu():
+    # global CHANNEL_NAMES
     oc = ObjectContainer(title1 = TITLE, no_cache = True)
     
     if Prefs['country'] != 'None':
-        country = COUNTRIES[Prefs['country']][0]
+        country = ""
+        for c in COUNTRIES[Prefs['country']]:
+            if len(country) > 0:
+                country = country + ",%s" % c
+            else:
+                country = country + "%s" % c
+
+        # data = JSON.ObjectFromURL(API_BASE_URL + 'channels/')
+        # theseChannels = ""
+        # for c in data['_embedded']['channels']:
+        #     if c['country'] in country:
+        #         CHANNEL_NAMES.append((c['id'], c['name']))
+        #         if c['id'] in CHANNELS:
+        #             if len(theseChannels) > 0:
+        #                 theseChannels = theseChannels + ",%s" % c['id']
+        #             else:
+        #                 theseChannels = theseChannels + "%s" % c['id']
         
-        title = 'Latest'
+        # title = 'Recommended'
+        # oc.add(
+        #     DirectoryObject(
+        #         key = 
+        #             Callback(
+        #                 Videos, 
+        #                 title1 = TITLE,
+        #                 title2 = title,
+        #                 videos_url = API_BASE_URL + 'sections?sections=videos.featured&premium=open&device=mobile&country=%s&channel=%s' % (country,theseChannels)
+        #             ), 
+        #         title = title
+        #     )
+        # )
+
         oc.add(
             DirectoryObject(
-                key = 
-                    Callback(
-                        Videos, 
-                        title = title,
-                        videos_url = API_BASE_URL + 'sections?sections=videos.latest&premium=open&device=mobile&country=%s' % country
-                    ), 
-                title = title
-            )
-        )
-        
-        title = 'Popular'
-        oc.add(
-            DirectoryObject(
-                key = 
-                    Callback(
-                        Videos, 
-                        title = title,
-                        videos_url = API_BASE_URL + 'sections?sections=videos.popular&premium=open&device=mobile&country=%s' % country
-                    ), 
-                title = title
-            )
-        )
-        
-        data = JSON.ObjectFromURL(API_BASE_URL + 'channels/')
-        
-        for channel in data['_embedded']['channels']:
-            if channel['country'] in COUNTRIES[Prefs['country']] and channel['id'] in CHANNELS:
-                oc.add(
-                    DirectoryObject(
-                        key = 
-                            Callback(
-                                ChannelMenu, 
-                                title = channel['name'], 
-                                id = channel['id'],
-                                base_url = CHANNELS[channel['id']]['base_url'],
-                                thumb = CHANNELS[channel['id']]['thumb']
-                            ), 
-                        title = channel['name'],
-                        summary = CHANNELS[channel['id']]['desc'],
-                        thumb = CHANNELS[channel['id']]['thumb']
-                    )
+                key   = Callback(Latest, channel=None, country=country), 
+                title = 'Latest'
                 )
-        
+            )
+
+        oc.add(
+            DirectoryObject(
+                key   = Callback(Popular, channel=None, country=country),
+                title = 'Popular'
+            )
+        )
+
+        oc.add(
+            DirectoryObject(
+                key   = Callback(Collections, country=country), 
+                title = 'Collections'
+                )
+            )
+
+        oc.add(
+            DirectoryObject(
+                key   = Callback(Categories, channel=None, country=country), 
+                title = 'Categories'
+                )
+            )
+
+        oc.add(
+            DirectoryObject(
+                key   = Callback(Channels, country=country), 
+                title = 'Channels'
+                )
+            )
+
+        oc.add(
+            DirectoryObject(
+                key   = Callback(AllPrograms, channel=None, country=country), 
+                title = 'All Programs'
+                )
+            )
+
         oc.add(
             InputDirectoryObject(
-                key = Callback(Search),
+                key    = Callback(Search, channel=None, country=country),
                 title  = 'Search Program',
                 prompt = 'Search Program',
-                thumb = R(THUMB)
+                thumb  = R(THUMB)
             )
         )
     else:
         oc.add(
             DirectoryObject(
-                key =
-                    Callback(
-                        NoCountrySelected
-                    ),
-                title = 'Please select country',
+                key     = Callback(NoCountrySelected),
+                title   = 'Please select country',
                 summary = 'Select country in preferences to get started'
             )
         )
@@ -318,90 +346,178 @@ def MainMenu():
     return oc
 
 ####################################################################################################
+@route(PREFIX + '/Channels')
+def Channels(country):
+
+    oc = ObjectContainer(title1 = TITLE, title2='Channels', no_cache = True)
+
+    data = JSON.ObjectFromURL(API_BASE_URL + 'channels/')
+        
+    for channel in data['_embedded']['channels']:
+        if channel['country'] in COUNTRIES[Prefs['country']] and channel['id'] in CHANNELS:
+            oc.add(
+                DirectoryObject(
+                    key = 
+                    Callback(
+                        ChannelMenu, 
+                        title = channel['name'], 
+                        country = country,
+                        id = channel['id'],
+                        base_url = CHANNELS[channel['id']]['base_url'],
+                        thumb = CHANNELS[channel['id']]['thumb']
+                        ), 
+                    title = channel['name'],
+                    summary = CHANNELS[channel['id']]['desc'],
+                    thumb = CHANNELS[channel['id']]['thumb']
+                    )
+                )
+    oc.objects.sort(key = lambda obj: obj.title)
+    return oc
+
+####################################################################################################
+@route(PREFIX + '/Latest', episodes = bool)
+def Latest(channel, country, episodes = True):
+
+    title2='Latest'
+    section = "videos.latest"
+    if not episodes:
+        title2 = title2 + " - Clips"
+        section = "videos.latest_clips"
+
+    if channel:
+        videos_url = API_BASE_URL + 'sections?sections=%s&premium=open&device=mobile&channel=%s' % (section, channel)
+    else:
+        videos_url = API_BASE_URL + 'sections?sections=%s&premium=open&device=mobile&country=%s' % (section, country)
+
+    oc = Videos(title1=GetTitle1(channel), title2=title2, videos_url=videos_url)
+
+    if episodes:
+        # Prepend Clips directory
+        oc.objects.reverse()
+        oc.add(DirectoryObject(key   = Callback(Latest, 
+                                                channel  = channel,
+                                                country  = country,
+                                                episodes = False, 
+                                                ),
+                               title = "Clips"
+                               )
+               )
+        oc.objects.reverse()
+    return oc
+
+####################################################################################################
+@route(PREFIX + '/Popular')
+def Popular(channel, country):
+
+    if channel:
+        videos_url = API_BASE_URL + 'sections?sections=videos.popular&premium=open&device=mobile&channel=%s' % channel
+    else:
+        videos_url = API_BASE_URL + 'sections?sections=videos.popular&premium=open&device=mobile&country=%s' % country
+
+    return Videos(title1=GetTitle1(channel), title2='Popular', videos_url=videos_url)
+
+####################################################################################################
 @route(PREFIX + '/ChannelMenu')
-def ChannelMenu(title, id, base_url, thumb):
-    oc = ObjectContainer(title2 = unicode(title))
-    
-    title = 'Latest'
+def ChannelMenu(title, id, country, base_url, thumb):
+    oc = ObjectContainer(title1 = TITLE, title2 = unicode(title))
+
     oc.add(
         DirectoryObject(
-            key = 
-                Callback(
-                    Videos, 
-                    title = title,
-                    videos_url = API_BASE_URL + 'sections?sections=videos.latest&premium=open&device=mobile&channel=%s' % id
-                ), 
-            title = title, 
+            key   = Callback(Latest, channel=id, country=None), 
+            title = 'Latest',
             thumb = thumb
         )
     ) 
 
-    title = 'Popular'
     oc.add(
         DirectoryObject(
-            key = 
-                Callback(
-                    Videos, 
-                    title = title, 
-                    videos_url = API_BASE_URL + 'sections?sections=videos.popular&premium=open&device=mobile&channel=%s' % id
-                ), 
-            title = title, 
-            thumb = thumb
-        )
-    )  
-    
-    title = 'All programs'
-    oc.add(
-        DirectoryObject(
-            key = 
-                Callback(
-                    AllPrograms, 
-                    title = title, 
-                    url = API_BASE_URL + 'formats?channel=%s&device=mobile&premium=open' % id
-                ), 
-            title = title, 
+            key   = Callback(Popular, channel=id, country=None),  
+            title = 'Popular',
             thumb = thumb
         )
     )
+
+    oc.add(
+        DirectoryObject(
+            # Seems channel must be added afterwards...
+            key   = Callback(Categories, channel=id, country=country),
+            title = 'Categories',
+            thumb = thumb
+        )
+    )
+
+    oc.add(
+        DirectoryObject(
+            key   = Callback(AllPrograms, channel=id, country=None),
+            title = 'All Programs',
+            thumb = thumb
+        )
+    )
+
+    oc.add(
+        InputDirectoryObject(
+            key    = Callback(Search, channel=id, country=None),
+            title  = 'Search Program',
+            prompt = 'Search Program',
+            thumb  = R(THUMB)
+            )
+        )
     
     return oc
 
 ####################################################################################################
-def Search(query, offset = 0):
-    oc = ObjectContainer(title1 = TITLE, title2 = 'Search Results')
+def Search(query, channel, country, offset = 0):
+    oc = ObjectContainer(title1 = GetTitle1(channel), title2 = 'Search Results')
 
-    country = COUNTRIES[Prefs['country']][0]
-        
-    result = JSON.ObjectFromURL(API_BASE_URL + 'search?term=%s&country=%s&device=mobile&premium=open&limit=%s' % (String.Quote(query), country, MAX_SEARCH_ITEMS))
+    query   = unicode(query)
+    results = []
+    counter = 0
+
+    videos = AllPrograms(channel, country).objects
+
+    for video in videos:                
+        # In case of single character - only compare initial character.
+        if len(query) > 1 and query.lower() in video.title.lower() or \
+                len(query) == 1 and query.lower() == video.title[0].lower():
+                    
+            results.append(
+                {
+                    'video': video, 
+                    'title': video.title, 
+                    'channel_title': video.source_title, 
+                    'thumb': video.art
+                }
+            )
     
-    if int(result['count']['total_items']) < 1:
-        return NoProgramsFound(oc)
-    
-    for program in result['_embedded']['formats']:
-        try:
-            title = unicode(program['title'])
-            id = program['id']
-        except:
+    results = sorted(results, key = lambda result: result['title'])           
+    for result in results:
+        counter = counter + 1
+            
+        if counter <= offset:
             continue
         
-        try:
-            thumb = program['_links']['image']['href'].replace("{size}", "497x280")
-        except:
-            thumb = R(THUMB)
-            
-        oc.add(
-            DirectoryObject(
-                key =
-                    Callback(
-                        Seasons,
-                        title = title,
-                        id = id
-                    ),
-                title = title,
-                thumb = thumb
+        video     = result['video']
+        video.art = result['thumb']
+                
+        oc.add(video)
+                    
+        if len(oc) >= MAX_SEARCH_ITEMS:
+            oc.objects.sort(key = lambda obj: obj.title)
+                
+            oc.add(
+                NextPageObject(
+                    key =
+                        Callback(
+                            Search,
+                            query = query,
+                            channel = channel,
+                            country = country,
+                            offset = counter
+                        ),
+                    title = "Next..."
+                )
             )
-        )
-            
+            return oc
 
     if len(oc) == 0:
         return NoProgramsFound(oc)
@@ -410,24 +526,140 @@ def Search(query, offset = 0):
         return oc
 
 ####################################################################################################
-@route(PREFIX + '/AllPrograms')
-def AllPrograms(title, url):
-    oc = ObjectContainer(title2 = unicode(title))
-    
-    programsInfo = JSON.ObjectFromURL(url)
-    pages = int(programsInfo['count']['total_pages'])
-    
+@route(PREFIX + '/Collections')
+def Collections(country):
+
+    oc = ObjectContainer(title1 = TITLE, title2 = unicode("Collections"))
+
+    url = API_BASE_URL + 'collections?country=%s&device=mobile&premium=open' % country
+
+    collectionsInfo = JSON.ObjectFromURL(url)
+    pages = int(collectionsInfo['count']['total_pages'])
     for page in range(pages):
-        for program in programsInfo['_embedded']['formats']:
+        for collection in collectionsInfo['_embedded']['collections']:
             oc.add(
                 DirectoryObject(
                     key = 
                         Callback(
+                            Programs,
+                            title1 = TITLE,
+                            title2 = unicode(collection['title']),
+                            url    = collection['_links']['self']['href']
+                        ),
+                    title = unicode(collection['title']),
+                    thumb = FixThumb(collection['_links']['image']['href'])
+                )
+             )
+        
+        if page + 2 > pages:
+            break
+        
+        if pages > 1:
+            collectionsInfo = JSON.ObjectFromURL(url + '&page=%s' % (page + 2))['_embedded']['sections'][0]
+
+    if len(oc) < 1:
+        return NoCollectionsFound(oc)
+
+    return oc
+
+####################################################################################################
+@route(PREFIX + '/Categories')
+def Categories(channel, country):
+
+    oc = ObjectContainer(title1 = TITLE, title2 = unicode("Categories"))
+
+    url = API_BASE_URL + 'categories?country=%s&device=mobile&premium=open' % country
+
+    if channel:
+        oc.title1 = GetChannelName(channel)
+
+    categoriesInfo = JSON.ObjectFromURL(url)
+    pages = int(categoriesInfo['count']['total_pages'])
+    for page in range(pages):
+        for category in categoriesInfo['_embedded']['categories']:
+            programs_url = category['_links']['formats']['href']
+            if channel:
+                programs_url = programs_url + "&channel=%s" % channel
+            oc.add(
+                DirectoryObject(
+                    key = 
+                        Callback(
+                            Programs,
+                            title1 = oc.title1,
+                            title2 = unicode(category['name']),
+                            url    = programs_url
+                        ),
+                    title = unicode(category['name']),
+                    thumb = FixThumb(category['_links']['image']['href'])
+                )
+             )
+        
+        if page + 2 > pages:
+            break
+        
+        if pages > 1:
+            categoriesInfo = JSON.ObjectFromURL(url + '&page=%s' % (page + 2))
+
+    if len(oc) < 1:
+        return NoCategoriesFound(oc)
+
+    oc.objects.sort(key = lambda obj: obj.title)
+  
+    return oc
+
+####################################################################################################
+@route(PREFIX + '/AllPrograms')
+def AllPrograms(channel, country):
+
+    title1 = TITLE
+
+
+    if channel:
+        url = API_BASE_URL + 'formats?channel=%s&device=mobile&premium=open' % channel
+        title1 = GetChannelName(channel)
+    else:
+        url = API_BASE_URL + 'formats?device=mobile&premium=open&country=%s' % country
+
+    return Programs(title1, unicode("All Programs"), url)
+
+####################################################################################################
+@route(PREFIX + '/Programs')
+def Programs(title1, title2, url):
+
+    oc = ObjectContainer(title1 = title1, title2 = title2)
+    
+    programsInfo = JSON.ObjectFromURL(url)
+    if 'count' in programsInfo:
+        pages = int(programsInfo['count']['total_pages'])
+    elif 'sharing' in programsInfo['_embedded']['items'][0]:
+        # Assume episodes of collection
+        return Videos(title1=title1, title2=title2, videos_url=url)
+    else:
+        pages = 1
+        
+    source_title = None
+    for page in range(pages):
+
+        if 'formats' in programsInfo['_embedded']:
+            programs = programsInfo['_embedded']['formats']
+        else:
+            programs = programsInfo['_embedded']['items']
+
+        for program in programs:
+            if title1 == TITLE:
+                source_title = GetChannelName(program['channel_id'])
+            oc.add(
+                TVShowObject(
+                    key = 
+                        Callback(
                             Seasons,
-                            title = unicode(program['title']),
+                            title1 = title1,
+                            title2 = unicode(program['title']),
                             id = program['id']
                         ),
+                    rating_key = program['id'],
                     title = unicode(program['title']),
+                    source_title = source_title,
                     thumb = program['image']
                 )
              )
@@ -447,25 +679,26 @@ def AllPrograms(title, url):
 
 ####################################################################################################
 @route(PREFIX + '/Seasons')
-def Seasons(title, id):
-    oc = ObjectContainer(title2 = unicode(title))
-  
-    seasonsInfo = JSON.ObjectFromURL(API_BASE_URL + 'seasons?format=%s' % id)
-    
-    if len(seasonsInfo['_embedded']['seasons']) == 1:
+def Seasons(title1, title2, id):
+    oc = ObjectContainer(title1 = unicode(title1), title2 = unicode(title2))
+
+    seasons = JSON.ObjectFromURL(API_BASE_URL + 'seasons?format=%s' % id)['_embedded']['seasons']
+
+    if len(seasons) == 1:
         try:
-            art = seasonsInfo['_embedded']['seasons'][0]['_links']['image']['href'].replace("{size}", "994x560")
+            art = seasons[0]['_links']['image']['href'].replace("{size}", "994x560")
         except:
             art = R(ART)
             
         return VideoTypeChoice(
-            title = unicode(seasonsInfo['_embedded']['seasons'][0]['title']),
-            videos_url = seasonsInfo['_embedded']['seasons'][0]['_links']['videos']['href'],
+            show  = title2,
+            title = unicode(seasons[0]['title']),
+            videos_url = seasons[0]['_links']['videos']['href'],
             art = art
         ) 
     
     else:
-        for season in seasonsInfo['_embedded']['seasons']:
+        for season in seasons:
             seasonName = unicode(season['title'])
             
             try:
@@ -473,48 +706,67 @@ def Seasons(title, id):
             except:
                 seasonImg = R(ART)
 
+            try:
+                index = int(season['format_position']['season'])
+            except:
+                index = None
+
             oc.add(
-                DirectoryObject(
+                SeasonObject(
                     key = 
                         Callback(
                             VideoTypeChoice, 
+                            show       = title2,
                             title      = seasonName, 
                             videos_url = season['_links']['videos']['href'],
                             art        = seasonImg
                         ), 
-                    title   = seasonName,  
-                    thumb   = seasonImg,
-                    art     = seasonImg
+                    rating_key = season['_links']['videos']['href'],
+                    index      = index,
+                    title      = seasonName,  
+                    show       = title2,
+                    thumb      = seasonImg,
+                    art        = seasonImg
                 )
             ) 
+
+    try:
+        oc.objects.sort(key = lambda obj: int(re.sub("[^0-9]+","",obj.title)), reverse = True)
+    except:
+        pass
 
     return oc
 
 
 ####################################################################################################
 @route(PREFIX + '/VideoTypeChoice')
-def VideoTypeChoice(title, videos_url, art = R(ART)):
+def VideoTypeChoice(show, title, videos_url, art = R(ART)):
     episodes_oc = Episodes(
+        show  = show,
         title = title,
         videos_url = videos_url,
         art = art
     )
-    
+
     if len(episodes_oc) < 1:
         return Clips(
+            show = show,
             title = title,
             videos_url = videos_url,
-            art = art       
+            art = art,
+            sort = True
         )
     
     else:
         clips_oc = Clips(
+            show = show,
             title = title,
             videos_url = videos_url,
-            art = art
+            art = art,
+            sort = True
         )
         
-        oc = ObjectContainer(title2 = unicode(title))
+        oc = ObjectContainer(title1 = unicode(show), title2 = unicode(title))
         
         if len(clips_oc) > 0:
             oc.add(
@@ -522,9 +774,11 @@ def VideoTypeChoice(title, videos_url, art = R(ART)):
                     key =
                         Callback(
                             Clips,
+                            show = show,
                             title = title,
                             videos_url = videos_url,
-                            art = art
+                            art = art,
+                            sort = True
                             
                         ),
                     title = 'Clips'
@@ -533,49 +787,62 @@ def VideoTypeChoice(title, videos_url, art = R(ART)):
         
         for object in episodes_oc.objects:
             oc.add(object)
-            
+
         return oc
 
 ####################################################################################################
 @route(PREFIX + '/Episodes')
-def Episodes(title, videos_url, art = R(ART)):
+def Episodes(show, title, videos_url, art = R(ART)):
     return Videos(
-        title = title,
+        title1 = show,
+        title2 = title,
         videos_url = videos_url + "&type=program",
-        art = art
+        art = art,
+        sort = True
     )
     
 ####################################################################################################
-@route(PREFIX + '/Clips')
-def Clips(title, videos_url, art = R(ART)):
+@route(PREFIX + '/Clips', sort = bool)
+def Clips(show, title, videos_url, art = R(ART), sort=False):
     return Videos(
-        title = title,
+        title1 = show,
+        title2 = title + " - Clips",
         videos_url = videos_url + "&type=clip",
-        art = art
+        art = art,
+        sort = sort
     )
  
 ####################################################################################################
-@route(PREFIX + '/Videos')
-def Videos(title, videos_url, art = R(ART)):
-    oc = ObjectContainer(title2 = unicode(title))
+@route(PREFIX + '/Videos', sort = bool)
+def Videos(title1, title2, videos_url, art = R(ART), sort=False):
+    oc = ObjectContainer(title1 = unicode(title1), title2 = unicode(title2))
     
-    orgTitle = title
-
     try:
         videosInfo = JSON.ObjectFromURL(videos_url)
     except:
         return NoProgramsFound(oc)
 
+    nextUrl = None
     try:
         videos = videosInfo['_embedded']['sections'][0]['_embedded']['videos']
+        if 'next' in videosInfo['_embedded']['sections'][0]['_links']:
+            nextUrl = videosInfo['_embedded']['sections'][0]['_links']['next']['href']
     except:
         try:
             videos = videosInfo['_embedded']['videos']
+            if 'next' in videosInfo['_links']:
+                nextUrl = videosInfo['_links']['next']['href']
         except:
-            return NoProgramsFound(oc)
+            try:
+                videos = videosInfo['_embedded']['items']
+            except:
+                return NoProgramsFound(oc)
     
     if videos:
         for video in videos:
+            source_title = None
+            if not "channel=" in videos_url and "country=" in videos_url:
+                source_title = GetChannelName(video['channel_id'])
             if video['publishing_status']['login_required']:
                 continue
             
@@ -585,22 +852,30 @@ def Videos(title, videos_url, art = R(ART)):
                 continue
             
             try:
-                title = unicode(video['title'])
+                title = unicode(video['title']).strip()
             except:
                 continue
-                
-            try:
-                summary = unicode(video['summary'])
-            except:
-                summary = None
-                
+
             try:
                 show = unicode(video['format_title'])
             except:
                 show = None
-                
+
+            if sort and show and show in title:
+                title = title + " - " + unicode(video['summary']).strip()
+                title = re.sub(show+"[ 	-,]*(:[ 	-,]*)*(S[0-9]+E[0-9]+)*[ 	-:,]*(.+)", "\\3", title)
+
             try:
-                thumb = video['_links']['image']['href'].replace("{size}", "497x280")
+                summary = unicode(video['summary']).strip()
+                if not video['description'].strip() in summary:
+                    summary = unicode(video['description'].strip()) + ". " + summary
+                if 'premium' in video:
+                    summary = AddAvailability(video['premium'], summary)
+            except:
+                summary = None
+
+            try:
+                thumb = FixThumb(video['_links']['image']['href'])
             except:
                 thumb = None
                 
@@ -628,6 +903,7 @@ def Videos(title, videos_url, art = R(ART)):
                 EpisodeObject(
                     url = url,
                     title = title,
+                    source_title = source_title,
                     summary = summary,
                     show = show,
                     art = art,
@@ -641,20 +917,42 @@ def Videos(title, videos_url, art = R(ART)):
             
     if len(oc) < 1:
         return NoProgramsFound(oc)
-    
-    elif 'next' in videosInfo['_links']:
-        oc.add(
-            NextPageObject(
-                key =
+    else:
+        if sort:
+            try:
+                sortOnAirData(oc)
+            except:
+                pass
+
+        if nextUrl:
+            oc.add(
+                NextPageObject(
+                    key =
                     Callback(
                         Videos,
-                        title = orgTitle,
-                        videos_url = videosInfo['_links']['next']['href'],
-                        art = art
+                        title1 = title1,
+                        title2 = title2,
+                        videos_url = nextUrl,
+                        art = art,
+                        sort = sort
+                        )
                     )
-            )
-        )
+                )
 
+    return oc
+
+####################################################################################################
+def NoCollectionsFound(oc):
+    oc.header  = "Sorry"
+    oc.message = "No collections found."
+     
+    return oc
+
+####################################################################################################
+def NoCategoriesFound(oc):
+    oc.header  = "Sorry"
+    oc.message = "No categories found."
+     
     return oc
 
 ####################################################################################################
@@ -663,7 +961,7 @@ def NoProgramsFound(oc):
     oc.message = "No programs found."
      
     return oc
-    
+   
 ####################################################################################################
 @route(PREFIX + '/NoCountrySelected')
 def NoCountrySelected():
@@ -674,3 +972,47 @@ def NoCountrySelected():
      
     return oc
 
+####################################################################################################
+def GetChannelName(channel_id):
+    if len(CHANNEL_NAMES) == 0:
+        FetchChannelNames()
+    for (channel, name) in CHANNEL_NAMES:
+        if int(channel_id) == int(channel):
+            return name
+    Log("ChannelName not found for channel_id:%r channels:%r" % (channel_id, CHANNEL_NAMES))
+    
+    return None
+
+####################################################################################################
+def FetchChannelNames():
+    global CHANNEL_NAMES
+    data = JSON.ObjectFromURL(API_BASE_URL + 'channels/')
+    for c in data['_embedded']['channels']:
+        if c['country'] in COUNTRIES[Prefs['country']]:
+            CHANNEL_NAMES.append((c['id'], c['name']))
+
+####################################################################################################
+def GetTitle1(channel):
+    if channel:
+        return GetChannelName(channel)
+    else:
+        return TITLE
+    
+####################################################################################################
+def FixThumb(url):
+    return url.replace("{size}", "497x280")
+
+####################################################################################################
+def sortOnAirData(Objects):
+    for obj in Objects.objects:
+        if obj.originally_available_at == None:
+            # Assume given Objects are in correct order
+            return Objects
+    return Objects.objects.sort(key=lambda obj: (obj.originally_available_at,obj.title), reverse=True)
+
+####################################################################################################
+def AddAvailability(premium, summary):
+    try:
+        return unicode('Availability: %i days. \n%s' % (premium['time_left']['days'], summary))
+    except:
+        return summary
