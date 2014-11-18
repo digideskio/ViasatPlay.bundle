@@ -252,31 +252,6 @@ def MainMenu():
     if Prefs['country'] != 'None':
         country = ",".join(COUNTRIES[Prefs['country']])
 
-        # data = JSON.ObjectFromURL(API_BASE_URL + 'channels/')
-        # theseChannels = ""
-        # for c in data['_embedded']['channels']:
-        #     if c['country'] in country:
-        #         CHANNEL_NAMES.append((c['id'], c['name']))
-        #         if c['id'] in CHANNELS:
-        #             if len(theseChannels) > 0:
-        #                 theseChannels = theseChannels + ",%s" % c['id']
-        #             else:
-        #                 theseChannels = theseChannels + "%s" % c['id']
-        
-        # title = 'Recommended'
-        # oc.add(
-        #     DirectoryObject(
-        #         key = 
-        #             Callback(
-        #                 Videos, 
-        #                 title1 = TITLE,
-        #                 title2 = title,
-        #                 videos_url = API_BASE_URL + 'sections?sections=videos.featured&premium=open&device=mobile&country=%s&channel=%s' % (country,theseChannels)
-        #             ), 
-        #         title = title
-        #     )
-        # )
-
         oc.add(
             DirectoryObject(
                 key   = Callback(Latest, channel=None, country=country), 
@@ -389,14 +364,20 @@ def Latest(channel, country, episodes = True):
     if episodes:
         # Prepend Clips directory
         oc.objects.reverse()
-        oc.add(DirectoryObject(key   = Callback(Latest, 
-                                                channel  = channel,
-                                                country  = country,
-                                                episodes = False, 
-                                                ),
-                               title = "Clips"
-                               )
-               )
+        
+        oc.add(
+            DirectoryObject(
+                key = 
+                    Callback(
+                        Latest, 
+                        channel  = channel,
+                        country  = country,
+                        episodes = False, 
+                    ),
+                title = "Clips"
+            )
+        )
+        
         oc.objects.reverse()
     return oc
 
@@ -607,7 +588,6 @@ def Categories(channel, country):
 def AllPrograms(channel, country):
 
     title1 = TITLE
-
 
     if channel:
         url = API_BASE_URL + 'formats?channel=%s&device=mobile&premium=open' % channel
