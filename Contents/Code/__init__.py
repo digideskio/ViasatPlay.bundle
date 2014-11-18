@@ -250,12 +250,7 @@ def MainMenu():
     oc = ObjectContainer(title1 = TITLE, no_cache = True)
     
     if Prefs['country'] != 'None':
-        country = ""
-        for c in COUNTRIES[Prefs['country']]:
-            if len(country) > 0:
-                country = country + ",%s" % c
-            else:
-                country = country + "%s" % c
+        country = ",".join(COUNTRIES[Prefs['country']])
 
         # data = JSON.ObjectFromURL(API_BASE_URL + 'channels/')
         # theseChannels = ""
