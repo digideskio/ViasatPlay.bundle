@@ -842,8 +842,13 @@ def Videos(title1, title2, videos_url, art = R(ART), sort=False):
 
             try:
                 summary = unicode(video['summary']).strip()
-                if not video['description'].strip() in summary:
-                    summary = unicode(video['description'].strip()) + ". " + summary
+                description = unicode(video['description'].strip())
+                if not description in summary:
+                    if description.endswith('.'):
+                        summary = description + " " + summary
+                    else:
+                        summary = description + ". " + summary
+
                 if 'premium' in video:
                     summary = AddAvailability(video['premium'], summary)
             except:
