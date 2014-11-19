@@ -818,7 +818,10 @@ def Videos(title1, title2, videos_url, art = R(ART), sort=False):
             source_title = None
             if not "channel=" in videos_url and "country=" in videos_url:
                 source_title = GetChannelName(video['channel_id'])
-            if video['publishing_status']['login_required']:
+            try:
+                if video['publishing_status']['login_required']:
+                    continue
+            except:
                 continue
             
             try:
