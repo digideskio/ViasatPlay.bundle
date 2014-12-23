@@ -682,7 +682,7 @@ def Seasons(title1, title2, id):
                 seasonImg = R(ART)
 
             try:
-                index = int(season['format_position']['season'])
+                index = int(re.sub("[^0-9]+","",season['format_position']['season']))
             except:
                 index = None
 
@@ -839,9 +839,9 @@ def Videos(title1, title2, videos_url, art = R(ART), sort=False):
             except:
                 show = None
 
-            if sort and show and show in title:
+            if sort and show and re.search(r"\b%s\b" % show, title):
                 title = title + " - " + unicode(video['summary']).strip()
-                title = re.sub(show+"[ 	-,]*(:[ 	-,]*)*(S[0-9]+E[0-9]+)*[ 	-:,]*(.+)", "\\3", title)
+                title = re.sub(show+"[ 	\-,:]*(S[0-9]+E[0-9]+[ 	\-,:]*)*(.+)", "\\2", title)
 
             try:
                 summary = unicode(video['summary']).strip()
@@ -878,25 +878,37 @@ def Videos(title1, title2, videos_url, art = R(ART), sort=False):
                 season = None
                 
             try:
-                index = int(video['format_position']['episode'])
+                index = int(re.sub("[^0-9]+","",video['format_position']['episode']))
             except:
                 index = None
-                
-            oc.add(
-                EpisodeObject(
-                    url = url,
-                    title = title,
-                    source_title = source_title,
-                    summary = summary,
-                    show = show,
-                    art = art,
-                    thumb = thumb,
-                    originally_available_at = originally_available_at,
-                    duration = duration,
-                    season = season,
-                    index = index
-                )
-            )
+
+            if source_title and not video['channel_id'] in CHANNELS:
+                oc.add(
+                    DirectoryObject(
+                        key = Callback(ChannelNotSupported, channel=source_title),
+                        title = title,
+                        summary = summary,
+                        duration = duration,
+                        thumb = thumb,
+                        art = art
+                        )
+                    )
+            else:
+                oc.add(
+                    EpisodeObject(
+                        url = url,
+                        title = title,
+                        source_title = source_title,
+                        summary = summary,
+                        show = show,
+                        art = art,
+                        thumb = thumb,
+                        originally_available_at = originally_available_at,
+                        duration = duration,
+                        season = season,
+                        index = index
+                        )
+                    )
             
     if len(oc) < 1:
         return NoProgramsFound(oc)
@@ -953,6 +965,15 @@ def NoCountrySelected():
     oc.header  = "Please select country"
     oc.message = "Select country in preferences to get started"
      
+    return oc
+
+####################################################################################################
+@route(PREFIX + '/ChannelNotSupported')
+def ChannelNotSupported(channel):
+    oc         = ObjectContainer()
+    oc.header  = unicode("%s is possibly a new Channel" % channel)
+    oc.message = unicode("A new version of this plugin is required to watch this.")
+    
     return oc
 
 ####################################################################################################
