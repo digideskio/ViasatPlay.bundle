@@ -523,7 +523,7 @@ def Collections(country):
                             url    = collection['_links']['self']['href']
                         ),
                     title = unicode(collection['title']),
-                    thumb = FixThumb(collection['_links']['image']['href'])
+                    thumb = FixThumb(collection)
                 )
              )
         
@@ -566,7 +566,7 @@ def Categories(channel, country):
                             url    = programs_url
                         ),
                     title = unicode(category['name']),
-                    thumb = FixThumb(category['_links']['image']['href'])
+                    thumb = FixThumb(category)
                 )
              )
         
@@ -858,7 +858,7 @@ def Videos(title1, title2, videos_url, art = R(ART), sort=False):
                 summary = None
 
             try:
-                thumb = FixThumb(video['_links']['image']['href'])
+                thumb = FixThumb(video)
             except:
                 thumb = None
                 
@@ -1003,8 +1003,11 @@ def GetTitle1(channel):
         return TITLE
     
 ####################################################################################################
-def FixThumb(url):
-    return url.replace("{size}", "497x280")
+def FixThumb(data):
+    try:
+        return data['_links']['image']['href'].replace("{size}", "497x280")
+    except:
+        return None
 
 ####################################################################################################
 def sortOnAirData(Objects):
