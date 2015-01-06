@@ -658,7 +658,7 @@ def Seasons(title1, title2, id):
     oc = ObjectContainer(title1 = unicode(title1), title2 = unicode(title2))
 
     seasons = JSON.ObjectFromURL(API_BASE_URL + 'seasons?format=%s' % id)['_embedded']['seasons']
-
+    seasons = DeleteEmptySeasons(seasons)
     if len(seasons) == 1:
         try:
             art = seasons[0]['_links']['image']['href'].replace("{size}", "994x560")
@@ -712,6 +712,19 @@ def Seasons(title1, title2, id):
 
     return oc
 
+####################################################################################################
+def DeleteEmptySeasons(seasons):
+    result = []
+    for s in seasons:
+        try:
+            videos = JSON.ObjectFromURL(s['_links']['videos']['href'])
+            if videos['count']['total_items'] == 0:
+                continue
+        except Exception as e:
+            pass
+        result.append(s)
+
+    return result
 
 ####################################################################################################
 @route(PREFIX + '/VideoTypeChoice')
@@ -728,8 +741,7 @@ def VideoTypeChoice(show, title, videos_url, art = R(ART)):
             show = show,
             title = title,
             videos_url = videos_url,
-            art = art,
-            sort = True
+            art = art
         )
     
     else:
@@ -737,8 +749,7 @@ def VideoTypeChoice(show, title, videos_url, art = R(ART)):
             show = show,
             title = title,
             videos_url = videos_url,
-            art = art,
-            sort = True
+            art = art
         )
         
         oc = ObjectContainer(title1 = unicode(show), title2 = unicode(title))
@@ -752,9 +763,7 @@ def VideoTypeChoice(show, title, videos_url, art = R(ART)):
                             show = show,
                             title = title,
                             videos_url = videos_url,
-                            art = art,
-                            sort = True
-                            
+                            art = art
                         ),
                     title = 'Clips'
                 )
@@ -777,14 +786,14 @@ def Episodes(show, title, videos_url, art = R(ART)):
     )
     
 ####################################################################################################
-@route(PREFIX + '/Clips', sort = bool)
-def Clips(show, title, videos_url, art = R(ART), sort=False):
+@route(PREFIX + '/Clips')
+def Clips(show, title, videos_url, art = R(ART)):
     return Videos(
         title1 = show,
         title2 = title + " - Clips",
         videos_url = videos_url + "&type=clip",
         art = art,
-        sort = sort
+        sort = True
     )
  
 ####################################################################################################
@@ -831,6 +840,7 @@ def Videos(title1, title2, videos_url, art = R(ART), sort=False):
             
             try:
                 title = unicode(video['title']).strip()
+                org_title = title
             except:
                 continue
 
@@ -841,7 +851,9 @@ def Videos(title1, title2, videos_url, art = R(ART), sort=False):
 
             if sort and show and re.search(r"\b%s\b" % show, title):
                 title = title + " - " + unicode(video['summary']).strip()
-                title = re.sub(show+"[ 	\-,:]*(S[0-9]+E[0-9]+[ 	\-,:]*)*(.+)", "\\2", title)
+                title = re.sub(show+"[ 	\-,:]*((S[0-9]+)*E[0-9]+[ 	\-,:]*)*(.+)", "\\3", title)
+                if title.strip() == "":
+                    title = re.sub(show+"[ 	\-,:]*(.+)", "\\1", org_title)
 
             try:
                 summary = unicode(video['summary']).strip()
