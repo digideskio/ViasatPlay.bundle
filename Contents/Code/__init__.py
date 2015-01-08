@@ -130,6 +130,13 @@ CHANNELS = {
         'thumb':    R(THUMB),
         'desc':     ''
     },
+
+    6005:
+    {
+        'base_url': 'http://www.juicyplay.se',
+        'thumb':    R('juicy.png'),
+        'desc':     unicode('JuicyPlay är en portal för allt du älskar inom nöje och kändisar. Här finns det senaste om stjärnorna från våra hetaste TV3-program, men också rykande färska nyheter om kändisar från såväl Hollywood som Stureplan.')
+    },
     
     6100:
     {
