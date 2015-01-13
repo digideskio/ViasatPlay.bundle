@@ -856,7 +856,7 @@ def Videos(title1, title2, videos_url, art = R(ART), sort=False):
             except:
                 show = None
 
-            if sort and show and re.search(r"\b%s\b" % show, title):
+            if sort and show and re.compile(ur'\b%s\b' % show, re.UNICODE).search(title):
                 title = title + " - " + unicode(video['summary']).strip()
                 title = re.sub(show+"[ 	\-,:]*((S[0-9]+)*E[0-9]+[ 	\-,:]*)*(.+)", "\\3", title)
                 if title.strip() == "":
