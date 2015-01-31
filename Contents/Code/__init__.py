@@ -130,6 +130,13 @@ CHANNELS = {
         'thumb':    R(THUMB),
         'desc':     ''
     },
+
+    6005:
+    {
+        'base_url': 'http://www.juicyplay.se',
+        'thumb':    R('juicy.png'),
+        'desc':     unicode('JuicyPlay är en portal för allt du älskar inom nöje och kändisar. Här finns det senaste om stjärnorna från våra hetaste TV3-program, men också rykande färska nyheter om kändisar från såväl Hollywood som Stureplan.')
+    },
     
     6100:
     {
@@ -523,7 +530,7 @@ def Collections(country):
                             url    = collection['_links']['self']['href']
                         ),
                     title = unicode(collection['title']),
-                    thumb = FixThumb(collection['_links']['image']['href'])
+                    thumb = FixThumb(collection)
                 )
              )
         
@@ -566,7 +573,7 @@ def Categories(channel, country):
                             url    = programs_url
                         ),
                     title = unicode(category['name']),
-                    thumb = FixThumb(category['_links']['image']['href'])
+                    thumb = FixThumb(category)
                 )
              )
         
@@ -658,7 +665,7 @@ def Seasons(title1, title2, id):
     oc = ObjectContainer(title1 = unicode(title1), title2 = unicode(title2))
 
     seasons = JSON.ObjectFromURL(API_BASE_URL + 'seasons?format=%s' % id)['_embedded']['seasons']
-
+    seasons = DeleteEmptySeasons(seasons)
     if len(seasons) == 1:
         try:
             art = seasons[0]['_links']['image']['href'].replace("{size}", "994x560")
@@ -682,7 +689,7 @@ def Seasons(title1, title2, id):
                 seasonImg = R(ART)
 
             try:
-                index = int(season['format_position']['season'])
+                index = int(re.sub("[^0-9]+","",season['format_position']['season']))
             except:
                 index = None
 
@@ -712,6 +719,19 @@ def Seasons(title1, title2, id):
 
     return oc
 
+####################################################################################################
+def DeleteEmptySeasons(seasons):
+    result = []
+    for s in seasons:
+        try:
+            videos = JSON.ObjectFromURL(s['_links']['videos']['href'])
+            if videos['count']['total_items'] == 0:
+                continue
+        except Exception as e:
+            pass
+        result.append(s)
+
+    return result
 
 ####################################################################################################
 @route(PREFIX + '/VideoTypeChoice')
@@ -728,8 +748,7 @@ def VideoTypeChoice(show, title, videos_url, art = R(ART)):
             show = show,
             title = title,
             videos_url = videos_url,
-            art = art,
-            sort = True
+            art = art
         )
     
     else:
@@ -737,8 +756,7 @@ def VideoTypeChoice(show, title, videos_url, art = R(ART)):
             show = show,
             title = title,
             videos_url = videos_url,
-            art = art,
-            sort = True
+            art = art
         )
         
         oc = ObjectContainer(title1 = unicode(show), title2 = unicode(title))
@@ -752,9 +770,7 @@ def VideoTypeChoice(show, title, videos_url, art = R(ART)):
                             show = show,
                             title = title,
                             videos_url = videos_url,
-                            art = art,
-                            sort = True
-                            
+                            art = art
                         ),
                     title = 'Clips'
                 )
@@ -777,14 +793,14 @@ def Episodes(show, title, videos_url, art = R(ART)):
     )
     
 ####################################################################################################
-@route(PREFIX + '/Clips', sort = bool)
-def Clips(show, title, videos_url, art = R(ART), sort=False):
+@route(PREFIX + '/Clips')
+def Clips(show, title, videos_url, art = R(ART)):
     return Videos(
         title1 = show,
         title2 = title + " - Clips",
         videos_url = videos_url + "&type=clip",
         art = art,
-        sort = sort
+        sort = True
     )
  
 ####################################################################################################
@@ -818,7 +834,10 @@ def Videos(title1, title2, videos_url, art = R(ART), sort=False):
             source_title = None
             if not "channel=" in videos_url and "country=" in videos_url:
                 source_title = GetChannelName(video['channel_id'])
-            if video['publishing_status']['login_required']:
+            try:
+                if video['publishing_status']['login_required']:
+                    continue
+            except:
                 continue
             
             try:
@@ -828,6 +847,7 @@ def Videos(title1, title2, videos_url, art = R(ART), sort=False):
             
             try:
                 title = unicode(video['title']).strip()
+                org_title = title
             except:
                 continue
 
@@ -836,21 +856,28 @@ def Videos(title1, title2, videos_url, art = R(ART), sort=False):
             except:
                 show = None
 
-            if sort and show and show in title:
+            if sort and show and re.compile(ur'\b%s\b' % show, re.UNICODE).search(title):
                 title = title + " - " + unicode(video['summary']).strip()
-                title = re.sub(show+"[ 	-,]*(:[ 	-,]*)*(S[0-9]+E[0-9]+)*[ 	-:,]*(.+)", "\\3", title)
+                title = re.sub(show+"[ 	\-,:]*((S[0-9]+)*E[0-9]+[ 	\-,:]*)*(.+)", "\\3", title)
+                if title.strip() == "":
+                    title = re.sub(show+"[ 	\-,:]*(.+)", "\\1", org_title)
 
             try:
                 summary = unicode(video['summary']).strip()
-                if not video['description'].strip() in summary:
-                    summary = unicode(video['description'].strip()) + ". " + summary
+                description = unicode(video['description'].strip())
+                if not description in summary:
+                    if description.endswith('.'):
+                        summary = description + " " + summary
+                    else:
+                        summary = description + ". " + summary
+
                 if 'premium' in video:
                     summary = AddAvailability(video['premium'], summary)
             except:
                 summary = None
 
             try:
-                thumb = FixThumb(video['_links']['image']['href'])
+                thumb = FixThumb(video)
             except:
                 thumb = None
                 
@@ -870,25 +897,37 @@ def Videos(title1, title2, videos_url, art = R(ART), sort=False):
                 season = None
                 
             try:
-                index = int(video['format_position']['episode'])
+                index = int(re.sub("[^0-9]+","",video['format_position']['episode']))
             except:
                 index = None
-                
-            oc.add(
-                EpisodeObject(
-                    url = url,
-                    title = title,
-                    source_title = source_title,
-                    summary = summary,
-                    show = show,
-                    art = art,
-                    thumb = thumb,
-                    originally_available_at = originally_available_at,
-                    duration = duration,
-                    season = season,
-                    index = index
-                )
-            )
+
+            if source_title and not video['channel_id'] in CHANNELS:
+                oc.add(
+                    DirectoryObject(
+                        key = Callback(ChannelNotSupported, channel=source_title),
+                        title = title,
+                        summary = summary,
+                        duration = duration,
+                        thumb = thumb,
+                        art = art
+                        )
+                    )
+            else:
+                oc.add(
+                    EpisodeObject(
+                        url = url,
+                        title = title,
+                        source_title = source_title,
+                        summary = summary,
+                        show = show,
+                        art = art,
+                        thumb = thumb,
+                        originally_available_at = originally_available_at,
+                        duration = duration,
+                        season = season,
+                        index = index
+                        )
+                    )
             
     if len(oc) < 1:
         return NoProgramsFound(oc)
@@ -948,6 +987,15 @@ def NoCountrySelected():
     return oc
 
 ####################################################################################################
+@route(PREFIX + '/ChannelNotSupported')
+def ChannelNotSupported(channel):
+    oc         = ObjectContainer()
+    oc.header  = unicode("%s is possibly a new Channel" % channel)
+    oc.message = unicode("A new version of this plugin is required to watch this.")
+    
+    return oc
+
+####################################################################################################
 def GetChannelName(channel_id):
     if len(CHANNEL_NAMES) == 0:
         FetchChannelNames()
@@ -974,8 +1022,11 @@ def GetTitle1(channel):
         return TITLE
     
 ####################################################################################################
-def FixThumb(url):
-    return url.replace("{size}", "497x280")
+def FixThumb(data):
+    try:
+        return data['_links']['image']['href'].replace("{size}", "497x280")
+    except:
+        return None
 
 ####################################################################################################
 def sortOnAirData(Objects):
