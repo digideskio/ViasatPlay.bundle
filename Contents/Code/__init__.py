@@ -613,7 +613,7 @@ def Programs(title1, title2, url):
     programsInfo = JSON.ObjectFromURL(url)
     if 'count' in programsInfo:
         pages = int(programsInfo['count']['total_pages'])
-    elif 'sharing' in programsInfo['_embedded']['items'][0]:
+    elif 'type' in programsInfo['_embedded']['items'][0]:
         # Assume episodes of collection
         return Videos(title1=title1, title2=title2, videos_url=url)
     else:
