@@ -642,7 +642,7 @@ def Programs(title1, title2, url):
                     rating_key = program['id'],
                     title = unicode(program['title']),
                     source_title = source_title,
-                    thumb = program['image']
+                    thumb = program['image'] if 'image' in program else FixThumb(program)
                 )
              )
         
