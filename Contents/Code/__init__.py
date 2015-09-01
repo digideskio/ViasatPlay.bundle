@@ -348,7 +348,8 @@ def Channels(country):
                     thumb = CHANNELS[channel['id']]['thumb']
                     )
                 )
-    oc.objects.sort(key = lambda obj: obj.title)
+    oc.objects.sort(key = lambda obj: re.search("[0-9]",obj.title) and int(re.sub("[^0-9]+", "", obj.title)) or obj.title)
+                    
     return oc
 
 ####################################################################################################
