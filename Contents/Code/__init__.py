@@ -564,6 +564,8 @@ def Categories(channel, country):
             programs_url = category['_links']['formats']['href']
             if channel:
                 programs_url = programs_url + "&channel=%s" % channel
+            if not "device=mobile" in programs_url:
+                programs_url = programs_url + "&device=mobile"
             oc.add(
                 DirectoryObject(
                     key = 
